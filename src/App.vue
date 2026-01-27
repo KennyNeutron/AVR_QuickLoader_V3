@@ -633,6 +633,7 @@ const burnBootloader = async () => {
     await window.electron.ipcRenderer.invoke("burn-bootloader", {
       programmer: selectedIsp.value,
       mcu: selectedMcu.value,
+      port: selectedPort.value,
     });
     addLog("Bootloader Burn Complete!");
   } catch (e: any) {
@@ -651,6 +652,7 @@ const testWiring = async () => {
     await window.electron.ipcRenderer.invoke("test-wiring", {
       programmer: selectedIsp.value,
       mcu: selectedMcu.value,
+      port: selectedPort.value,
     });
     addLog("Wiring Test Success! (Avrdude connected)");
   } catch (e: any) {

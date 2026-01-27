@@ -106,36 +106,63 @@ function createWindow() {
   });
 
   // 4. Burn Bootloader
-  ipcMain.handle("burn-bootloader", async (event, { programmer, mcu }) => {
-    const appPath = app.getAppPath();
-    // Assuming folder structure is tools/bootloaders/atmega328p/optiboot.hex
-    // We will default to m328p for now
-    const bootloaderPath = path.join(
-      appPath,
-      "tools",
-      "bootloaders",
-      "atmega328p",
-      "optiboot.hex",
-    );
+  ipcMain.handle(
+    "burn-bootloader",
+    async (event, { programmer, mcu, port }) => {
+      const appPath = app.getAppPath();
+      // Assuming folder structure is tools/bootloaders/atmega328p/optiboot.hex
+      // We will default to m328p for now
+      const bootloaderPath = path.join(
+        appPath,
+        "tools",
+        "bootloaders",
+        "atmega328p",
+        "optiboot.hex",
+      );
 
-    const progType = programmer === "USBtinyISP" ? "usbtiny" : "usbtiny";
+      let progType = "usbtiny";
+      let extraArgs: string[] = [];
 
-    const args = [
-      "-v",
-      "-p",
-      mcu || "m328p",
-      "-c",
-      progType,
-      "-U",
-      `flash:w:${bootloaderPath}:i`,
-    ];
-    return await spawnAvrdude(event, args);
-  });
+      if (programmer === "Arduino as ISP") {
+        progType = "stk500v1";
+        if (port) {
+          extraArgs.push("-P", port, "-b", "19200");
+        }
+      } else if (programmer === "AVRISP mkII") {
+        progType = "avrispmkII";
+        extraArgs.push("-P", "usb");
+      }
+
+      const args = [
+        "-v",
+        "-p",
+        mcu || "m328p",
+        "-c",
+        progType,
+        ...extraArgs,
+        "-U",
+        `flash:w:${bootloaderPath}:i`,
+      ];
+      return await spawnAvrdude(event, args);
+    },
+  );
 
   // 5. Test Wiring
-  ipcMain.handle("test-wiring", async (event, { programmer, mcu }) => {
-    const progType = programmer === "USBtinyISP" ? "usbtiny" : "usbtiny";
-    const args = ["-c", progType, "-p", mcu || "m328p"];
+  ipcMain.handle("test-wiring", async (event, { programmer, mcu, port }) => {
+    let progType = "usbtiny";
+    let extraArgs: string[] = [];
+
+    if (programmer === "Arduino as ISP") {
+      progType = "stk500v1";
+      if (port) {
+        extraArgs.push("-P", port, "-b", "19200");
+      }
+    } else if (programmer === "AVRISP mkII") {
+      progType = "avrispmkII";
+      extraArgs.push("-P", "usb");
+    }
+
+    const args = ["-c", progType, "-p", mcu || "m328p", ...extraArgs];
     return await spawnAvrdude(event, args);
   });
 

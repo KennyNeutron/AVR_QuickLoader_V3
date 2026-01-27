@@ -389,7 +389,11 @@
             </button>
           </div>
 
-          <button class="btn-icon-tiny">
+          <button
+            class="btn-icon-tiny"
+            @click="toggleTerminal"
+            title="Toggle Terminal Height"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="12"
@@ -461,6 +465,7 @@ import { ref, onMounted, nextTick } from "vue";
 
 // --- State ---
 const activeTab = ref("terminal");
+const isTerminalExpanded = ref(false);
 const ports = ref<{ path: string; manufacturer?: string }[]>([]);
 const selectedPort = ref("Select a port...");
 const firmwarePath = ref("");
@@ -476,6 +481,8 @@ const serialConnected = ref(false);
 const serialMessages = ref<string[]>([]);
 const serialInput = ref("");
 
+// Buffer for avrdude logs to handle progress bars
+
 // --- lifecycle ---
 onMounted(async () => {
   // Initial logs
@@ -486,24 +493,23 @@ onMounted(async () => {
   // Load ports
   await refreshPorts();
 
-  // Listen for avrdude logs
+  // Listen for avrdude logs with buffering support
   window.electron.ipcRenderer.on(
     "avrdude-log",
     (_event: any, message: string) => {
-      addLog(message);
+      // Append to buffer
+      // If message contains line breaks or is a progress update, handle accordingly
+      handleAvrdudeLog(message);
     },
   );
 
   // Listen for Serial Data
   window.electron.ipcRenderer.on("serial-data", (_e: any, data: string) => {
-    // Append to last message if it doesn't end with newline, or just push?
-    // Simple implementation: push new lines or append.
-    // For now, let's just push raw chunks for simplicity, but in a real app we'd buffer lines.
-    // We'll just append to a large string buffer or array of lines.
-    // Let's split by newline to display cleanly
+    // Simple implementation: split by newline to display cleanly
     const lines = data.split("\n");
     lines.forEach((line) => {
-      if (line) serialMessages.value.push(line);
+      const trimmed = line.trim();
+      if (trimmed) serialMessages.value.push(trimmed);
     });
     scrollToBottomSerial();
   });
@@ -521,9 +527,70 @@ onMounted(async () => {
 
 // --- Actions ---
 
-const addLog = (msg: string) => {
-  logs.value.push(`> ${msg}`);
+/**
+ * Handles incoming log chunks from avrdude.
+ * Reconstructs lines and updates the UI for progress bars.
+ */
+const handleAvrdudeLog = (msg: string) => {
+  if (!msg) return;
+
+  // Check if this chunk is a partial progress update (contains # or starts with Reading/Writing)
+  // or if it's just a newline
+  const isProgressChunk = msg.includes("#") || msg.includes("%");
+  const hasNewline = msg.includes("\n");
+
+  // If we have a previous non-terminated line in the buffer (conceptually), we might want to append.
+  // Ideally, we treat logs array as "Lines".
+  // If the last log line "looks like" an active progress bar, we append to it.
+
+  if (isProgressChunk && !hasNewline) {
+    // It's a chunk of a progress bar.
+    // Check if the last log line is also a progress bar / operation line.
+    const lastLogIndex = logs.value.length - 1;
+    if (lastLogIndex >= 0) {
+      const lastLog = logs.value[lastLogIndex];
+      // Heuristic: If last line starts with Reading/Writing or contains #, append to it
+      if (
+        lastLog.includes("Reading |") ||
+        lastLog.includes("Writing |") ||
+        lastLog.includes("#")
+      ) {
+        logs.value[lastLogIndex] = lastLog + msg;
+        scrollToBottomTerminal();
+        return;
+      }
+    }
+  }
+
+  // Fallback: regular log handling
+  // If message has newlines, split them
+  const parts = msg.split("\n");
+  parts.forEach((part) => {
+    // If it's empty and not the only part, skip (to avoid double spacing)
+    if (!part && parts.length > 1) return;
+    if (!part.trim() && !isProgressChunk) return; // Ignore pure whitespace unless it's weird
+
+    // If it's a new line, push.
+    // But if we are in the middle of a "Writing |" line that was pushed without a newline...
+    // The current UI just pushes lines.
+    // The heuristic above handles the update-in-place.
+
+    // If this part is non-empty, push it as a new line
+    if (part) {
+      logs.value.push(`> ${part}`);
+    }
+  });
   scrollToBottomTerminal();
+};
+
+const addLog = (msg: string) => {
+  if (!msg || !msg.trim()) return;
+  logs.value.push(`> ${msg.trim()}`);
+  scrollToBottomTerminal();
+};
+
+const toggleTerminal = () => {
+  isTerminalExpanded.value = !isTerminalExpanded.value;
 };
 
 const scrollToBottomTerminal = () => {
@@ -749,7 +816,7 @@ const sendSerial = async () => {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   padding: 12px;
-  flex: 1;
+  flex: 0 1 auto; /* Allow shrinking/fitting, don't greedily take all space if bottom panel wants it */
   overflow-y: auto;
 }
 
@@ -1043,8 +1110,15 @@ const sendSerial = async () => {
   border-top: 1px solid #333;
   display: flex;
   flex-direction: column;
-  height: 200px; /* Increased height for serial */
+  flex: 1; /* 1 1 0% - strictly fill space, do not grow with content */
+  min-height: 200px;
+  overflow: hidden; /* Constrain children */
   flex-shrink: 0;
+  transition: min-height 0.3s ease;
+}
+
+.bottom-panel.expanded {
+  min-height: 600px;
 }
 
 .panel-tabs {

@@ -504,13 +504,29 @@ onMounted(async () => {
   );
 
   // Listen for Serial Data
+  // Listen for Serial Data
   window.electron.ipcRenderer.on("serial-data", (_e: any, data: string) => {
-    // Simple implementation: split by newline to display cleanly
-    const lines = data.split("\n");
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-      if (trimmed) serialMessages.value.push(trimmed);
-    });
+    // Basic buffering: Append incoming data to the last line if no newline,
+    // or split and push if newlines are present.
+    // Also strip \r to avoid artifacts, assuming \n is primary separator
+    const safeData = data.replace(/\r/g, "");
+
+    // If we have no lines yet, add one
+    if (serialMessages.value.length === 0) {
+      serialMessages.value.push("");
+    }
+
+    const parts = safeData.split("\n");
+
+    // The first part always belongs to the *current* last line
+    const lastIdx = serialMessages.value.length - 1;
+    serialMessages.value[lastIdx] += parts[0];
+
+    // Any subsequent parts are new lines
+    for (let i = 1; i < parts.length; i++) {
+      serialMessages.value.push(parts[i]);
+    }
+
     scrollToBottomSerial();
   });
 
@@ -534,52 +550,47 @@ onMounted(async () => {
 const handleAvrdudeLog = (msg: string) => {
   if (!msg) return;
 
-  // Check if this chunk is a partial progress update (contains # or starts with Reading/Writing)
-  // or if it's just a newline
-  const isProgressChunk = msg.includes("#") || msg.includes("%");
-  const hasNewline = msg.includes("\n");
+  const parts = msg.split("\n");
 
-  // If we have a previous non-terminated line in the buffer (conceptually), we might want to append.
-  // Ideally, we treat logs array as "Lines".
-  // If the last log line "looks like" an active progress bar, we append to it.
+  parts.forEach((part) => {
+    // Skip empty chunks if we have multiple (avoids double spacing from split)
+    if (!part && parts.length > 1) return;
+    if (!part) return;
 
-  if (isProgressChunk && !hasNewline) {
-    // It's a chunk of a progress bar.
-    // Check if the last log line is also a progress bar / operation line.
-    const lastLogIndex = logs.value.length - 1;
-    if (lastLogIndex >= 0) {
-      const lastLog = logs.value[lastLogIndex];
-      // Heuristic: If last line starts with Reading/Writing or contains #, append to it
-      if (
-        lastLog.includes("Reading |") ||
-        lastLog.includes("Writing |") ||
-        lastLog.includes("#")
-      ) {
-        logs.value[lastLogIndex] = lastLog + msg;
-        scrollToBottomTerminal();
-        return;
+    const trimmed = part.trim();
+    // Detect if this part acts as a "Header" or start of a new progress block
+    const isNewHeader =
+      trimmed.startsWith("Reading |") ||
+      trimmed.startsWith("Writing |") ||
+      trimmed.startsWith("Verifying |");
+
+    // Detect if this part is a progress update (has # or %) AND is NOT a new header
+    const isProgressUpdate =
+      !isNewHeader && (trimmed.includes("#") || trimmed.includes("%"));
+
+    if (isProgressUpdate) {
+      const lastLogIndex = logs.value.length - 1;
+      if (lastLogIndex >= 0) {
+        const lastLog = logs.value[lastLogIndex];
+        // Only append if the last line matches a progress bar pattern
+        // (Starts with expected headers or contains #)
+        if (
+          lastLog.includes("Reading |") ||
+          lastLog.includes("Writing |") ||
+          lastLog.includes("Verifying |") ||
+          lastLog.includes("#")
+        ) {
+          logs.value[lastLogIndex] = lastLog + part;
+          scrollToBottomTerminal();
+          return;
+        }
       }
     }
-  }
 
-  // Fallback: regular log handling
-  // If message has newlines, split them
-  const parts = msg.split("\n");
-  parts.forEach((part) => {
-    // If it's empty and not the only part, skip (to avoid double spacing)
-    if (!part && parts.length > 1) return;
-    if (!part.trim() && !isProgressChunk) return; // Ignore pure whitespace unless it's weird
-
-    // If it's a new line, push.
-    // But if we are in the middle of a "Writing |" line that was pushed without a newline...
-    // The current UI just pushes lines.
-    // The heuristic above handles the update-in-place.
-
-    // If this part is non-empty, push it as a new line
-    if (part) {
-      logs.value.push(`> ${part}`);
-    }
+    // Otherwise, push as a new line
+    logs.value.push(`> ${part}`);
   });
+
   scrollToBottomTerminal();
 };
 
@@ -1178,12 +1189,15 @@ const sendSerial = async () => {
 }
 
 .terminal-body {
+  width: 100%; /* Ensure it spans the full width */
   padding: 8px 12px;
   overflow-y: auto;
   font-family: "Consolas", "Monaco", monospace;
   font-size: 0.85rem;
   color: #ccc;
   line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .log-line {
@@ -1201,10 +1215,13 @@ const sendSerial = async () => {
 
 .serial-output {
   flex: 1;
+  width: 100%; /* Ensure it spans the full width */
   padding: 8px 12px;
   overflow-y: auto;
   font-size: 0.85rem;
   color: #ccc;
+  white-space: pre-wrap; /* Respect newlines and spaces */
+  word-break: break-all; /* Break long words if necessary */
 }
 
 .serial-input-bar {

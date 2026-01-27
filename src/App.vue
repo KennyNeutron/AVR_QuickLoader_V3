@@ -11,7 +11,7 @@
           class="refresh-icon"
           @click="refreshPorts"
           title="Refresh Ports"
-          style="cursor: pointer"
+          style="cursor: pointer; color: #00e676"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -37,7 +37,7 @@
         <div class="port-selector-wrapper">
           <!-- Utilizing the same class structure as the "Device Configuration" panel for consistency -->
           <div class="select-wrapper full-width">
-            <span class="chip-icon">
+            <span class="chip-icon" style="color: #7c4dff">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="18"
@@ -89,7 +89,7 @@
             <label class="input-label">FIRMWARE FILE</label>
             <div class="file-input-group">
               <div class="file-input-wrapper">
-                <span class="upload-icon">
+                <span class="upload-icon" style="color: #ffab00">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -247,7 +247,7 @@
           <div class="panel-content">
             <label class="input-label">PROGRAMMER TYPE</label>
             <div class="select-wrapper mb-2">
-              <span class="isp-icon">
+              <span class="isp-icon" style="color: #e91e63">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"

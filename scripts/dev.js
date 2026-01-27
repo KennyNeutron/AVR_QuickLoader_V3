@@ -1,7 +1,7 @@
-import { spawn } from "child_process";
-import { createServer } from "vite";
-import electron from "electron";
-import { watch } from "fs";
+const { spawn } = require("child_process");
+const { createServer } = require("vite");
+const electron = require("electron");
+const { watch } = require("fs");
 
 const PORT = 5173;
 let electronProcess = null;

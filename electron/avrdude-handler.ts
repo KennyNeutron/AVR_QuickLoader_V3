@@ -1,6 +1,6 @@
 import { SerialPort } from "serialport";
 import { spawn, ChildProcess } from "child_process";
-import path from "path";
+import * as path from "path";
 import { app, BrowserWindow, IpcMainInvokeEvent } from "electron";
 
 let runningProcess: ChildProcess | null = null;

@@ -3,7 +3,6 @@
   "version": "3.1.0",
   "description": "Professional AVR flashing and ISP utility",
   "main": "dist-electron/main.js",
-  "type": "module",
   "scripts": {
     "dev": "node scripts/dev.js",
     "build": "vite build && tsc -p tsconfig.electron.json",

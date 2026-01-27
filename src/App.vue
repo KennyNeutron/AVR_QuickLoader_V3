@@ -485,12 +485,15 @@ onMounted(async () => {
   await refreshPorts();
 
   // Listen for avrdude logs
-  window.ipcRenderer.on("avrdude-log", (_event: any, message: string) => {
-    addLog(message);
-  });
+  window.electron.ipcRenderer.on(
+    "avrdude-log",
+    (_event: any, message: string) => {
+      addLog(message);
+    },
+  );
 
   // Listen for Serial Data
-  window.ipcRenderer.on("serial-data", (_e: any, data: string) => {
+  window.electron.ipcRenderer.on("serial-data", (_e: any, data: string) => {
     // Append to last message if it doesn't end with newline, or just push?
     // Simple implementation: push new lines or append.
     // For now, let's just push raw chunks for simplicity, but in a real app we'd buffer lines.
@@ -503,12 +506,12 @@ onMounted(async () => {
     scrollToBottomSerial();
   });
 
-  window.ipcRenderer.on("serial-error", (_e: any, msg: string) => {
+  window.electron.ipcRenderer.on("serial-error", (_e: any, msg: string) => {
     addLog(`[SERIAL ERROR] ${msg}`);
     serialConnected.value = false;
   });
 
-  window.ipcRenderer.on("serial-closed", () => {
+  window.electron.ipcRenderer.on("serial-closed", () => {
     addLog(`[SERIAL] Port closed`);
     serialConnected.value = false;
   });
@@ -537,7 +540,7 @@ const scrollToBottomSerial = () => {
 
 const refreshPorts = async () => {
   try {
-    const result = await window.ipcRenderer.invoke("list-ports");
+    const result = await window.electron.ipcRenderer.invoke("list-ports");
     ports.value = result;
     // Auto-select first if available and none selected
     if (ports.value.length > 0 && selectedPort.value === "Select a port...") {
@@ -579,7 +582,7 @@ const uploadFirmware = async () => {
   isBusy.value = true;
   addLog(`Starting Firmware Upload to ${selectedPort.value}...`);
   try {
-    await window.ipcRenderer.invoke("upload-firmware", {
+    await window.electron.ipcRenderer.invoke("upload-firmware", {
       port: selectedPort.value,
       hexPath: firmwarePath.value,
       mcu: selectedMcu.value,
@@ -595,7 +598,7 @@ const uploadFirmware = async () => {
 
 // 2. Stop
 const stopOperation = async () => {
-  await window.ipcRenderer.invoke("stop-operation");
+  await window.electron.ipcRenderer.invoke("stop-operation");
   addLog("Operation stopped by user.");
   isBusy.value = false;
 };
@@ -610,7 +613,7 @@ const ispUpload = async () => {
   isBusy.value = true;
   addLog(`Starting ISP Upload using ${selectedIsp.value}...`);
   try {
-    await window.ipcRenderer.invoke("isp-upload", {
+    await window.electron.ipcRenderer.invoke("isp-upload", {
       programmer: selectedIsp.value,
       hexPath: firmwarePath.value,
       mcu: selectedMcu.value,
@@ -629,7 +632,7 @@ const burnBootloader = async () => {
   isBusy.value = true;
   addLog(`Burning Bootloader for ${selectedMcu.value}...`);
   try {
-    await window.ipcRenderer.invoke("burn-bootloader", {
+    await window.electron.ipcRenderer.invoke("burn-bootloader", {
       programmer: selectedIsp.value,
       mcu: selectedMcu.value,
     });
@@ -647,7 +650,7 @@ const testWiring = async () => {
   isBusy.value = true;
   addLog("Testing Wiring...");
   try {
-    await window.ipcRenderer.invoke("test-wiring", {
+    await window.electron.ipcRenderer.invoke("test-wiring", {
       programmer: selectedIsp.value,
       mcu: selectedMcu.value,
     });
@@ -662,7 +665,7 @@ const testWiring = async () => {
 // 6. Serial Monitor Connect
 const toggleSerial = async () => {
   if (serialConnected.value) {
-    await window.ipcRenderer.invoke("serial-disconnect");
+    await window.electron.ipcRenderer.invoke("serial-disconnect");
     // State updated by event
   } else {
     if (selectedPort.value === "Select a port...") {
@@ -670,7 +673,7 @@ const toggleSerial = async () => {
       return;
     }
     addLog(`Connecting Serial to ${selectedPort.value}...`);
-    const success = await window.ipcRenderer.invoke("serial-connect", {
+    const success = await window.electron.ipcRenderer.invoke("serial-connect", {
       port: selectedPort.value,
       baud: serialBaud.value,
     });
@@ -689,7 +692,7 @@ const sendSerial = async () => {
   let textToSend = serialInput.value;
   if (serialEol.value === "Newline") textToSend += "\n";
 
-  await window.ipcRenderer.invoke("serial-write", textToSend);
+  await window.electron.ipcRenderer.invoke("serial-write", textToSend);
   // Echo local?
   serialMessages.value.push(`[TX] ${textToSend.trim()}`);
   serialInput.value = "";

@@ -1,15 +1,15 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import path from "path";
+import * as path from "path";
 import { listPorts, spawnAvrdude, stopAvrdude } from "./avrdude-handler.js";
 import {
   connectSerial,
   disconnectSerial,
   writeSerial,
 } from "./serial-handler.js";
-import { fileURLToPath } from "url";
 import { readFileSync } from "fs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// In CommonJS, __dirname is available globally or injected by wrapper
 const packageJsonPath = path.join(__dirname, "../package.json");
 const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
 const APP_VERSION = packageJson.version;
@@ -23,11 +23,14 @@ function createWindow() {
     title: `AVR QuickLoader v${APP_VERSION} | By KennyNeutron`,
     backgroundColor: "#1a1a1a",
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
   });
+  console.log("Main process __dirname:", __dirname);
+  console.log("Preload path:", path.join(__dirname, "preload.js"));
 
   // Load from Vite dev server in development, or from built files in production
   if (process.env.VITE_DEV_SERVER_URL) {

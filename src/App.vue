@@ -365,6 +365,32 @@
           </label>
           <!-- Serial Controls (Mini) -->
           <div class="mini-serial-controls" v-if="activeTab === 'serial'">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="serialAutoscroll" />
+              Auto-scroll
+            </label>
+            <button
+              class="btn-icon-tiny"
+              @click="clearSerialLogs"
+              title="Clear Output"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 6h18"></path>
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                ></path>
+              </svg>
+            </button>
             <div class="mini-select-group">
               <span class="label">BAUD</span>
               <select class="mini-select" v-model="serialBaud">
@@ -478,6 +504,7 @@ const isBusy = ref(false);
 const serialBaud = ref("115200");
 const serialEol = ref("Newline"); // 'Newline', 'No Line Ending'
 const serialConnected = ref(false);
+const serialAutoscroll = ref(true);
 const serialMessages = ref<string[]>([]);
 const serialInput = ref("");
 
@@ -604,6 +631,10 @@ const toggleTerminal = () => {
   isTerminalExpanded.value = !isTerminalExpanded.value;
 };
 
+const clearSerialLogs = () => {
+  serialMessages.value = [];
+};
+
 const scrollToBottomTerminal = () => {
   nextTick(() => {
     const container = document.querySelector(".terminal-body");
@@ -612,6 +643,7 @@ const scrollToBottomTerminal = () => {
 };
 
 const scrollToBottomSerial = () => {
+  if (!serialAutoscroll.value) return; // Respect autoscroll setting
   nextTick(() => {
     const container = document.querySelector(".serial-output");
     if (container) container.scrollTop = container.scrollHeight;
@@ -751,6 +783,7 @@ const toggleSerial = async () => {
       return;
     }
     addLog(`Connecting Serial to ${selectedPort.value}...`);
+    clearSerialLogs(); // Auto-clear on connect
     const success = await window.electron.ipcRenderer.invoke("serial-connect", {
       port: selectedPort.value,
       baud: serialBaud.value,

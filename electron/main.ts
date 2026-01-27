@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import * as path from "path";
 import { listPorts, spawnAvrdude, stopAvrdude } from "./avrdude-handler.js";
 import {
@@ -162,6 +162,19 @@ function createWindow() {
       return true;
     } catch (err: any) {
       throw new Error(err.message);
+    }
+  });
+
+  // 8. Open File Dialog
+  ipcMain.handle("dialog:open-file", async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: [{ name: "Hex Files", extensions: ["hex"] }],
+    });
+    if (result.canceled) {
+      return null;
+    } else {
+      return result.filePaths[0];
     }
   });
 

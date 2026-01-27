@@ -378,8 +378,10 @@
             <div class="mini-select-group">
               <span class="label">EOL</span>
               <select class="mini-select" v-model="serialEol">
-                <option value="Newline">Newline</option>
                 <option value="No Line Ending">No Line Ending</option>
+                <option value="Newline">New Line</option>
+                <option value="Carriage Return">Carriage Return</option>
+                <option value="Both NL & CR">Both NL & CR</option>
               </select>
             </div>
             <button class="btn-mini-primary" @click="toggleSerial">
@@ -552,19 +554,15 @@ const refreshPorts = async () => {
 };
 
 const browseFirmware = async () => {
-  // Mocking file browse for now as we don't have a backend dialog handler yes
-  // In a real app we'd use dialog.showOpenDialog via IPC
-  // For this task, we will simulate or just let user type?
-  // User instruction says "Firmware Upload (UART)".
-  // We can't trigger native dialog easily without another IPC.
-  // Let's assume the user manually enters it or we add a simple IPC for it.
-  // For now, let's just focus on the IPC calls we DEFINED.
-  // We will assume the user pastes a path or we Mock it for the "check" phase if needed.
-  // Let's add a quick mock file for testing if empty.
-  addLog(
-    "File browser not implemented in this step. Please paste path or use default.",
-  );
-  firmwarePath.value = "C:\\firmware.hex"; // Default/Placeholder
+  try {
+    const path = await window.electron.ipcRenderer.invoke("dialog:open-file");
+    if (path) {
+      firmwarePath.value = path;
+      addLog(`Selected firmware: ${path}`);
+    }
+  } catch (err: any) {
+    addLog(`Error opening file dialog: ${err.message}`);
+  }
 };
 
 // 1. Upload Firmware
@@ -690,7 +688,21 @@ const sendSerial = async () => {
   if (!serialConnected.value || !serialInput.value) return;
 
   let textToSend = serialInput.value;
-  if (serialEol.value === "Newline") textToSend += "\n";
+  switch (serialEol.value) {
+    case "Newline":
+      textToSend += "\n";
+      break;
+    case "Carriage Return":
+      textToSend += "\r";
+      break;
+    case "Both NL & CR":
+      textToSend += "\r\n";
+      break;
+    case "No Line Ending":
+    default:
+      // No appending
+      break;
+  }
 
   await window.electron.ipcRenderer.invoke("serial-write", textToSend);
   // Echo local?

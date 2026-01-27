@@ -1,5 +1,11 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
+import { listPorts, spawnAvrdude, stopAvrdude } from "./avrdude-handler.js";
+import {
+  connectSerial,
+  disconnectSerial,
+  writeSerial,
+} from "./serial-handler.js";
 import { fileURLToPath } from "url";
 import { readFileSync } from "fs";
 
@@ -19,6 +25,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -37,6 +44,127 @@ function createWindow() {
   // Prevent the renderer from changing the window title
   mainWindow.on("page-title-updated", (e) => {
     e.preventDefault();
+  });
+
+  // --- IPC Handlers ---
+
+  // 1. List Ports
+  ipcMain.handle("list-ports", async () => {
+    return await listPorts();
+  });
+
+  // 2. Upload Firmware (UART)
+  ipcMain.handle(
+    "upload-firmware",
+    async (event, { port, hexPath, mcu, baud }) => {
+      const args = [
+        "-v",
+        "-p",
+        mcu || "m328p",
+        "-c",
+        "arduino",
+        "-P",
+        port,
+        "-b",
+        baud || "115200",
+        "-D", // Disable auto erase for arduino
+        "-U",
+        `flash:w:${hexPath}:i`,
+      ];
+      return await spawnAvrdude(event, args);
+    },
+  );
+
+  // 3. ISP Upload (USBTiny/ASP)
+  ipcMain.handle("isp-upload", async (event, { programmer, hexPath, mcu }) => {
+    // Programmer mapping
+    const progType =
+      programmer === "USBtinyISP"
+        ? "usbtiny"
+        : programmer === "AVRISP mkII"
+          ? "avrispmkII"
+          : "arduino"; // Fallback
+
+    const args = [
+      "-v",
+      "-p",
+      mcu || "m328p",
+      "-c",
+      progType,
+      "-U",
+      `flash:w:${hexPath}:i`,
+    ];
+    // For ISP, path might not be needed if USB, but -P usb is implied for usbtiny
+    if (progType === "avrispmkII") {
+      args.push("-P", "usb");
+    }
+
+    return await spawnAvrdude(event, args);
+  });
+
+  // 4. Burn Bootloader
+  ipcMain.handle("burn-bootloader", async (event, { programmer, mcu }) => {
+    const appPath = app.getAppPath();
+    // Assuming folder structure is tools/bootloaders/atmega328p/optiboot.hex
+    // We will default to m328p for now
+    const bootloaderPath = path.join(
+      appPath,
+      "tools",
+      "bootloaders",
+      "atmega328p",
+      "optiboot.hex",
+    );
+
+    const progType = programmer === "USBtinyISP" ? "usbtiny" : "usbtiny";
+
+    const args = [
+      "-v",
+      "-p",
+      mcu || "m328p",
+      "-c",
+      progType,
+      "-U",
+      `flash:w:${bootloaderPath}:i`,
+    ];
+    return await spawnAvrdude(event, args);
+  });
+
+  // 5. Test Wiring
+  ipcMain.handle("test-wiring", async (event, { programmer, mcu }) => {
+    const progType = programmer === "USBtinyISP" ? "usbtiny" : "usbtiny";
+    const args = ["-c", progType, "-p", mcu || "m328p"];
+    return await spawnAvrdude(event, args);
+  });
+
+  // 6. Stop Operation
+  ipcMain.handle("stop-operation", () => {
+    const killed = stopAvrdude();
+    return killed;
+  });
+
+  // 7. Serial Monitor
+  ipcMain.handle("serial-connect", async (event, { port, baud }) => {
+    const br = parseInt(baud);
+    return await connectSerial(port, isNaN(br) ? 115200 : br, event);
+  });
+
+  ipcMain.handle("serial-disconnect", async () => {
+    await disconnectSerial();
+    return true;
+  });
+
+  ipcMain.handle("serial-write", async (event, data) => {
+    try {
+      await writeSerial(data);
+      return true;
+    } catch (err: any) {
+      throw new Error(err.message);
+    }
+  });
+
+  mainWindow.on("closed", () => {
+    stopAvrdude();
+    disconnectSerial();
   });
 }
 

@@ -919,7 +919,7 @@ const sendSerial = async () => {
 /* --- Global Port Bar --- */
 .global-port-section {
   background-color: #252d3a;
-  padding: 12px 16px;
+  padding: 20px 16px;
   border-bottom: 4px solid var(--warning-color);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   z-index: 10;

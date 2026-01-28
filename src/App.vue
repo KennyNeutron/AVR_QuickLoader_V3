@@ -56,7 +56,7 @@
               </svg>
             </span>
             <select class="custom-select" v-model="selectedPort">
-              <option disabled>Select a port...</option>
+              <option value="Select a port...">None / Select a port...</option>
               <option v-for="port in ports" :key="port.path" :value="port.path">
                 {{ port.path }}
                 {{ port.manufacturer ? `(${port.manufacturer})` : "" }}
@@ -67,9 +67,22 @@
         </div>
 
         <div class="active-port-indicator">
-          <div class="status-dot"></div>
+          <div
+            class="status-dot"
+            :class="{
+              active: selectedPort !== 'Select a port...' && isPortConnected,
+              disconnected:
+                selectedPort !== 'Select a port...' && !isPortConnected,
+            }"
+          ></div>
           <div class="status-text">
-            <div class="label">Active Port</div>
+            <div class="label">
+              {{
+                selectedPort !== "Select a port..." && !isPortConnected
+                  ? "DISCONNECTED"
+                  : "ACTIVE PORT"
+              }}
+            </div>
             <div class="value">
               {{ selectedPort !== "Select a port..." ? selectedPort : "None" }}
             </div>
@@ -127,7 +140,7 @@
           <div class="panel-content">
             <label class="input-label">TARGET BOARD</label>
             <div class="select-wrapper">
-              <span class="chip-icon">
+              <span class="chip-icon" style="color: #00ffff">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -373,6 +386,7 @@
               class="btn-icon-tiny"
               @click="clearSerialLogs"
               title="Clear Output"
+              style="color: #ff0000"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -410,7 +424,10 @@
                 <option value="Both NL & CR">Both NL & CR</option>
               </select>
             </div>
-            <button class="btn-mini-primary" @click="toggleSerial">
+            <button
+              :class="serialConnected ? 'btn-mini-danger' : 'btn-mini-success'"
+              @click="toggleSerial"
+            >
               {{ serialConnected ? "Disconnect" : "Connect" }}
             </button>
           </div>
@@ -508,6 +525,9 @@ const serialAutoscroll = ref(true);
 const serialMessages = ref<string[]>([]);
 const serialInput = ref("");
 
+// Port Connection State
+const isPortConnected = ref(true);
+
 // Buffer for avrdude logs to handle progress bars
 
 // --- lifecycle ---
@@ -566,6 +586,18 @@ onMounted(async () => {
     addLog(`[SERIAL] Port closed`);
     serialConnected.value = false;
   });
+
+  // Periodic port availability check (every 2 seconds)
+  setInterval(async () => {
+    if (selectedPort.value !== "Select a port...") {
+      await refreshPorts();
+      // Check if selected port still exists in the ports list
+      const portExists = ports.value.some((p) => p.path === selectedPort.value);
+      isPortConnected.value = portExists;
+    } else {
+      isPortConnected.value = true; // No port selected, so set to default
+    }
+  }, 2000);
 });
 
 // --- Actions ---
@@ -687,6 +719,7 @@ const uploadFirmware = async () => {
     return;
   }
 
+  activeTab.value = "terminal";
   isBusy.value = true;
   addLog(`Starting Firmware Upload to ${selectedPort.value}...`);
   try {
@@ -718,6 +751,7 @@ const ispUpload = async () => {
     addLog("Error: No firmware file selected");
     return;
   }
+  activeTab.value = "terminal";
   isBusy.value = true;
   addLog(`Starting ISP Upload using ${selectedIsp.value}...`);
   try {
@@ -737,6 +771,7 @@ const ispUpload = async () => {
 // 4. Burn Bootloader
 const burnBootloader = async () => {
   if (isBusy.value) return;
+  activeTab.value = "terminal";
   isBusy.value = true;
   addLog(`Burning Bootloader for ${selectedMcu.value}...`);
   try {
@@ -756,6 +791,7 @@ const burnBootloader = async () => {
 // 5. Test Wiring
 const testWiring = async () => {
   if (isBusy.value) return;
+  activeTab.value = "terminal";
   isBusy.value = true;
   addLog("Testing Wiring...");
   try {
@@ -825,7 +861,7 @@ const sendSerial = async () => {
 };
 </script>
 
-<style scoped>
+<style>
 /* --- Design System --- */
 :root {
   --bg-dark: #1a1a1a;
@@ -920,9 +956,16 @@ const sendSerial = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 16px;
   padding-left: 12px;
   border-left: 1px solid #3d4a5c;
-  min-width: 100px;
+  min-width: 120px;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 188, 212, 0.05),
+    rgba(0, 188, 212, 0.02)
+  );
+  border-radius: 4px;
 }
 
 .status-dot {
@@ -930,15 +973,52 @@ const sendSerial = async () => {
   height: 10px;
   border-radius: 50%;
   background-color: #666;
+  transition: all 0.3s ease;
+}
+
+.status-dot.active {
+  background-color: var(--success-color);
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(76, 175, 80, 0.8);
+  }
+}
+
+.status-dot.disconnected {
+  background-color: var(--danger-color);
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+  animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(244, 67, 54, 0.8);
+  }
 }
 
 .status-text .label {
   font-size: 0.65rem;
-  color: var(--text-muted);
+  color: var(--primary-color);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .status-text .value {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
 }
 
 /* --- Common Panel Styles --- */
@@ -1227,14 +1307,14 @@ const sendSerial = async () => {
   overflow-y: auto;
   font-family: "Consolas", "Monaco", monospace;
   font-size: 0.85rem;
-  color: #ccc;
+  color: #ff5252;
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
 .log-line {
-  color: #4caf50;
+  color: #ff5252;
 }
 .prompt {
   margin-right: 6px;
@@ -1252,7 +1332,7 @@ const sendSerial = async () => {
   padding: 8px 12px;
   overflow-y: auto;
   font-size: 0.85rem;
-  color: #ccc;
+  color: #4caf50;
   white-space: pre-wrap; /* Respect newlines and spaces */
   word-break: break-all; /* Break long words if necessary */
 }
@@ -1305,7 +1385,7 @@ const sendSerial = async () => {
   font-size: 0.7rem;
 }
 .mini-select-group .label {
-  color: #666;
+  color: var(--primary-color);
   font-weight: 600;
 }
 
@@ -1331,6 +1411,34 @@ const sendSerial = async () => {
 }
 .btn-mini-primary:hover {
   background: var(--primary-hover);
+}
+
+.btn-mini-success {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  background: var(--success-color);
+  color: #fff;
+  border: none;
+  border-radius: 2px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-mini-success:hover {
+  background: #43a047;
+}
+
+.btn-mini-danger {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  background: var(--danger-color);
+  color: #fff;
+  border: none;
+  border-radius: 2px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-mini-danger:hover {
+  background: var(--danger-hover);
 }
 
 .btn-icon-tiny {

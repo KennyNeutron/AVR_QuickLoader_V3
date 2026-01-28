@@ -408,11 +408,20 @@
             <div class="mini-select-group">
               <span class="label">BAUD</span>
               <select class="mini-select" v-model="serialBaud">
+                <option value="300">300</option>
+                <option value="600">600</option>
+                <option value="1200">1200</option>
+                <option value="2400">2400</option>
+                <option value="4800">4800</option>
                 <option value="9600">9600</option>
+                <option value="14400">14400</option>
                 <option value="19200">19200</option>
+                <option value="28800">28800</option>
                 <option value="38400">38400</option>
                 <option value="57600">57600</option>
+                <option value="74880">74880</option>
                 <option value="115200">115200</option>
+                <option value="230400">230400</option>
               </select>
             </div>
             <div class="mini-select-group">

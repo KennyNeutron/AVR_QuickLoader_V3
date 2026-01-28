@@ -21,6 +21,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     title: `AVR QuickLoader v${APP_VERSION} | By KennyNeutron`,
+    icon: path.join(__dirname, "../assets/icon.png"),
     backgroundColor: "#1a1a1a",
     webPreferences: {
       sandbox: false,

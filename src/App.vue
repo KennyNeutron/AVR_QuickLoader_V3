@@ -768,6 +768,7 @@ const ispUpload = async () => {
       programmer: selectedIsp.value,
       hexPath: firmwarePath.value,
       mcu: selectedMcu.value,
+      port: selectedPort.value,
     });
     addLog("ISP Upload Complete!");
   } catch (e: any) {

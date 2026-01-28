@@ -120,31 +120,35 @@ function createWindow() {
   );
 
   // 3. ISP Upload (USBTiny/ASP)
-  ipcMain.handle("isp-upload", async (event, { programmer, hexPath, mcu }) => {
-    // Programmer mapping
-    const progType =
-      programmer === "USBtinyISP"
-        ? "usbtiny"
-        : programmer === "AVRISP mkII"
-          ? "avrispmkII"
-          : "arduino"; // Fallback
+  ipcMain.handle(
+    "isp-upload",
+    async (event, { programmer, hexPath, mcu, port }) => {
+      // Programmer mapping
+      const progType =
+        programmer === "USBtinyISP"
+          ? "usbtiny"
+          : programmer === "AVRISP mkII"
+            ? "avrispmkII"
+            : "stk500v1"; // Arduino as ISP
 
-    const args = [
-      "-v",
-      "-p",
-      mcu || "m328p",
-      "-c",
-      progType,
-      "-U",
-      `flash:w:${hexPath}:i`,
-    ];
-    // For ISP, path might not be needed if USB, but -P usb is implied for usbtiny
-    if (progType === "avrispmkII") {
-      args.push("-P", "usb");
-    }
+      const args = ["-v", "-p", mcu || "m328p", "-c", progType];
 
-    return await spawnAvrdude(event, args);
-  });
+      // Add port for Arduino as ISP
+      if (programmer === "Arduino as ISP" && port) {
+        args.push("-P", port, "-b", "19200");
+      }
+
+      // For AVRISP mkII, use USB
+      if (progType === "avrispmkII") {
+        args.push("-P", "usb");
+      }
+
+      // Add flash write command
+      args.push("-U", `flash:w:${hexPath}:i`);
+
+      return await spawnAvrdude(event, args);
+    },
+  );
 
   // 4. Burn Bootloader
   ipcMain.handle(
@@ -181,6 +185,14 @@ function createWindow() {
         "-c",
         progType,
         ...extraArgs,
+        // Set fuses for 16MHz external crystal and bootloader
+        "-U",
+        "lfuse:w:0xFF:m", // Low fuse: 16MHz ext crystal, slow startup
+        "-U",
+        "hfuse:w:0xDE:m", // High fuse: 2KB bootloader, EESAVE enabled
+        "-U",
+        "efuse:w:0xFD:m", // Extended fuse: BOD 2.7V
+        // Write bootloader
         "-U",
         `flash:w:${bootloaderPath}:i`,
       ];

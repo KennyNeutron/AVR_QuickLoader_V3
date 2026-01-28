@@ -44,8 +44,10 @@ export function spawnAvrdude(
     }
 
     // Resolve paths strictly relative to app root
-    const appPath = app.getAppPath();
-    const toolsPath = path.join(appPath, "tools", "avrdude");
+    // In production, tools are in extraResources (outside asar)
+    // In development, tools are in the project root
+    const basePath = app.isPackaged ? process.resourcesPath : app.getAppPath();
+    const toolsPath = path.join(basePath, "tools", "avrdude");
     const avrdudeExe = path.join(toolsPath, "avrdude.exe");
     const avrdudeConf = path.join(toolsPath, "avrdude.conf");
 

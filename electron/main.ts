@@ -155,11 +155,15 @@ function createWindow() {
   ipcMain.handle(
     "burn-bootloader",
     async (event, { programmer, mcu, port }) => {
-      const appPath = app.getAppPath();
+      // In production, tools are in extraResources (outside asar)
+      // In development, tools are in the project root
+      const basePath = app.isPackaged
+        ? process.resourcesPath
+        : app.getAppPath();
       // Assuming folder structure is tools/bootloaders/atmega328p/optiboot.hex
       // We will default to m328p for now
       const bootloaderPath = path.join(
-        appPath,
+        basePath,
         "tools",
         "bootloaders",
         "atmega328p",

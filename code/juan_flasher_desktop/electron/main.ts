@@ -276,6 +276,15 @@ function createWindow() {
     return filePath;
   });
 
+  // 10. Clear cached cloud firmware files
+  ipcMain.handle("clear-firmware-cache", async () => {
+    const tempDir = path.join(os.tmpdir(), "juan-flasher-firmware");
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    return true;
+  });
+
   mainWindow.on("closed", () => {
     stopAvrdude();
     disconnectSerial();

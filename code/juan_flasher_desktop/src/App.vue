@@ -939,6 +939,14 @@ const handleSignOut = async () => {
   } catch (e) {
     console.error("Error signing out from Supabase:", e);
   }
+  
+  // Clear any downloaded cloud firmware on logout
+  try {
+    await window.electron.ipcRenderer.invoke("clear-firmware-cache");
+  } catch (e) {
+    console.error("Error clearing firmware cache:", e);
+  }
+
   userEmail.value = "";
   userRole.value = "";
   userExpiresAt.value = null;
@@ -1187,6 +1195,13 @@ const isPortConnected = ref(true);
 
 // --- lifecycle ---
 onMounted(async () => {
+  // Clear any leftover downloaded cloud firmware when the app starts
+  try {
+    await window.electron.ipcRenderer.invoke("clear-firmware-cache");
+  } catch (e) {
+    console.error("Error clearing firmware cache on startup:", e);
+  }
+
   // Check active user session on load
   try {
     const { data } = await supabase.auth.getSession();

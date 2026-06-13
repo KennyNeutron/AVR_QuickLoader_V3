@@ -2,6 +2,36 @@
 -- DATABASE SETUP: ADMIN & EXPIRING TEMPORARY USERS FOR JUAN FLASHER
 -- Execute this script in your Supabase SQL Editor (Dashboard > SQL Editor)
 -- =====================================================================
+--
+-- IMPORTANT: STORAGE BUCKET SETUP (Manual Step)
+-- ==============================================
+-- 1. Go to Supabase Dashboard > Storage
+-- 2. Click "New Bucket", name it: firmware
+-- 3. Set it to PRIVATE (not public)
+-- 4. After creating the bucket, go to Storage > Policies and create:
+--
+--    Policy 1: "Authenticated users can list and download firmware"
+--      - Allowed operation: SELECT
+--      - Target roles: authenticated
+--      - Policy: (bucket_id = 'firmware')
+--
+--    Policy 2: "Authenticated users can download firmware"
+--      - Allowed operation: SELECT (for objects)
+--      - Target roles: authenticated
+--      - Policy: (bucket_id = 'firmware')
+--
+--    Policy 3: "Admins can upload firmware"
+--      - Allowed operation: INSERT
+--      - Target roles: authenticated
+--      - Policy: (bucket_id = 'firmware' AND public.is_admin())
+--
+--    Policy 4: "Admins can delete firmware"
+--      - Allowed operation: DELETE
+--      - Target roles: authenticated
+--      - Policy: (bucket_id = 'firmware' AND public.is_admin())
+--
+-- OR run the SQL below after creating the bucket:
+-- =====================================================================
 
 -- 1. Create Profiles Table
 create table if not exists public.profiles (

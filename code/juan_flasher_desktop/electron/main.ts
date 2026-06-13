@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
 import * as path from "path";
+import * as fs from "fs";
+import * as os from "os";
 import { listPorts, spawnAvrdude, stopAvrdude } from "./avrdude-handler.js";
 import {
   connectSerial,
@@ -261,6 +263,17 @@ function createWindow() {
     } else {
       return result.filePaths[0];
     }
+  });
+
+  // 9. Save Cloud Firmware to temp file (returns local path for avrdude)
+  ipcMain.handle("save-cloud-firmware", async (_event, { fileName, base64Data }: { fileName: string; base64Data: string }) => {
+    const tempDir = path.join(os.tmpdir(), "juan-flasher-firmware");
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const filePath = path.join(tempDir, fileName);
+    fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
+    return filePath;
   });
 
   mainWindow.on("closed", () => {

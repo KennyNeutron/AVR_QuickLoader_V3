@@ -252,77 +252,117 @@
         <section class="panel firmware-panel">
           <div class="panel-header">FIRMWARE SELECTION</div>
           <div class="panel-content">
-            <label class="input-label">FIRMWARE FILE</label>
-            <div class="file-input-group">
-              <div class="file-input-wrapper">
-                <span class="upload-icon" style="color: #ffab00">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="17 8 12 3 7 8"></polyline>
-                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  placeholder="Select a .hex file..."
-                  readonly
-                  class="text-input-with-icon"
-                  v-model="firmwarePath"
-                />
-              </div>
-              <button class="btn btn-secondary" @click="browseFirmware">
-                Browse
+            <!-- Source Toggle -->
+            <div class="firmware-source-toggle">
+              <button
+                class="source-btn"
+                :class="{ active: firmwareSource === 'local' }"
+                @click="firmwareSource = 'local'"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                LOCAL
+              </button>
+              <button
+                class="source-btn"
+                :class="{ active: firmwareSource === 'cloud' }"
+                @click="firmwareSource = 'cloud'; fetchCloudFirmware();"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+                CLOUD
               </button>
             </div>
-          </div>
-        </section>
 
-        <!-- Device Configuration -->
-        <section class="panel device-panel">
-          <div class="panel-header">DEVICE CONFIGURATION</div>
-          <div class="panel-content">
-            <label class="input-label">TARGET BOARD</label>
-            <div class="select-wrapper">
-              <span class="chip-icon" style="color: #00ffff">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+            <!-- Local File Mode -->
+            <div v-if="firmwareSource === 'local'">
+              <label class="input-label">FIRMWARE FILE</label>
+              <div class="file-input-group">
+                <div class="file-input-wrapper">
+                  <span class="upload-icon" style="color: #ffab00">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Select a .hex file..."
+                    readonly
+                    class="text-input-with-icon"
+                    v-model="firmwarePath"
+                  />
+                </div>
+                <button class="btn btn-secondary" @click="browseFirmware">
+                  Browse
+                </button>
+              </div>
+            </div>
+
+            <!-- Cloud Mode -->
+            <div v-if="firmwareSource === 'cloud'">
+              <label class="input-label">CLOUD FIRMWARE</label>
+              <div class="cloud-firmware-row">
+                <div class="select-wrapper full-width">
+                  <span class="chip-icon" style="color: #7c4dff">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+                  </span>
+                  <select class="custom-select" v-model="selectedCloudFile" @change="onCloudFileSelected">
+                    <option value="">Select firmware from cloud...</option>
+                    <option v-for="file in cloudFirmwareFiles" :key="file.name" :value="file.name">
+                      {{ file.name }} ({{ formatFileSize(file.metadata?.size || 0) }})
+                    </option>
+                  </select>
+                  <div class="select-arrow">▼</div>
+                </div>
+                <button
+                  class="btn-icon-tiny"
+                  @click="fetchCloudFirmware"
+                  title="Refresh"
+                  style="color: var(--primary-color); margin-left: 6px;"
                 >
-                  <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
-                  <rect x="9" y="9" width="6" height="6"></rect>
-                  <line x1="9" y1="1" x2="9" y2="4"></line>
-                  <line x1="15" y1="1" x2="15" y2="4"></line>
-                  <line x1="9" y1="20" x2="9" y2="23"></line>
-                  <line x1="15" y1="20" x2="15" y2="23"></line>
-                  <line x1="20" y1="9" x2="23" y2="9"></line>
-                  <line x1="20" y1="14" x2="23" y2="14"></line>
-                  <line x1="1" y1="9" x2="4" y2="9"></line>
-                  <line x1="1" y1="14" x2="4" y2="14"></line>
-                </svg>
-              </span>
-              <select class="custom-select" v-model="selectedMcu">
-                <option value="m328p">Arduino Uno (m328p)</option>
-                <option value="m328p">Arduino Nano (m328p)</option>
-                <option value="m2560">Arduino Mega (m2560)</option>
-              </select>
-              <div class="select-arrow">▼</div>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                </button>
+              </div>
+              <div v-if="cloudLoading" class="cloud-status-msg">
+                <span class="spinner-inline"></span> Loading firmware list...
+              </div>
+              <div v-if="cloudDownloading" class="cloud-status-msg" style="margin-top: 6px;">
+                <span class="spinner-inline"></span> Downloading firmware...
+              </div>
+
+              <!-- Admin: Upload + Delete -->
+              <div v-if="userRole === 'admin'" class="cloud-admin-actions">
+                <button class="btn btn-secondary btn-small" @click="triggerCloudUpload" :disabled="cloudUploading">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  {{ cloudUploading ? 'Uploading...' : 'Upload .hex' }}
+                </button>
+                <button
+                  v-if="selectedCloudFile"
+                  class="btn-table-action btn-delete btn-small"
+                  @click="deleteCloudFirmware"
+                  title="Delete selected firmware"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  Delete
+                </button>
+                <input
+                  type="file"
+                  ref="cloudUploadInput"
+                  accept=".hex"
+                  style="display: none;"
+                  @change="handleCloudUpload"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -992,9 +1032,145 @@ const ports = ref<{ path: string; manufacturer?: string }[]>([]);
 const selectedPort = ref("Select a port...");
 const firmwarePath = ref("");
 const selectedMcu = ref("m328p"); // Default to m328p
-const selectedIsp = ref("USBtinyISP");
+const selectedIsp = ref("Arduino as ISP");
 const logs = ref<string[]>([]);
 const isBusy = ref(false);
+
+// Cloud Firmware State
+const firmwareSource = ref<"local" | "cloud">("local");
+const cloudFirmwareFiles = ref<any[]>([]);
+const selectedCloudFile = ref("");
+const cloudLoading = ref(false);
+const cloudDownloading = ref(false);
+const cloudUploading = ref(false);
+const cloudUploadInput = ref<HTMLInputElement | null>(null);
+
+const FIRMWARE_BUCKET = "firmware";
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
+const fetchCloudFirmware = async () => {
+  cloudLoading.value = true;
+  try {
+    const { data, error } = await supabase.storage
+      .from(FIRMWARE_BUCKET)
+      .list("", { sortBy: { column: "name", order: "asc" } });
+    if (error) {
+      addLog(`[Cloud Error] ${error.message}`);
+    } else {
+      // Filter only .hex files
+      cloudFirmwareFiles.value = (data || []).filter((f: any) => f.name.endsWith(".hex"));
+      addLog(`Loaded ${cloudFirmwareFiles.value.length} firmware file(s) from cloud`);
+    }
+  } catch (e: any) {
+    addLog(`[Cloud Error] ${e.message}`);
+  } finally {
+    cloudLoading.value = false;
+  }
+};
+
+const onCloudFileSelected = async () => {
+  if (!selectedCloudFile.value) {
+    firmwarePath.value = "";
+    return;
+  }
+
+  cloudDownloading.value = true;
+  addLog(`Downloading cloud firmware: ${selectedCloudFile.value}...`);
+  try {
+    const { data, error } = await supabase.storage
+      .from(FIRMWARE_BUCKET)
+      .download(selectedCloudFile.value);
+
+    if (error) {
+      addLog(`[Cloud Error] Download failed: ${error.message}`);
+      cloudDownloading.value = false;
+      return;
+    }
+
+    // Convert blob to base64 and send to Electron to save as temp file
+    const arrayBuffer = await data.arrayBuffer();
+    const base64Data = btoa(
+      new Uint8Array(arrayBuffer).reduce((d, byte) => d + String.fromCharCode(byte), "")
+    );
+
+    const localPath = await window.electron.ipcRenderer.invoke("save-cloud-firmware", {
+      fileName: selectedCloudFile.value,
+      base64Data,
+    });
+
+    firmwarePath.value = localPath;
+    addLog(`Cloud firmware ready: ${localPath}`);
+  } catch (e: any) {
+    addLog(`[Cloud Error] ${e.message}`);
+  } finally {
+    cloudDownloading.value = false;
+  }
+};
+
+const triggerCloudUpload = () => {
+  cloudUploadInput.value?.click();
+};
+
+const handleCloudUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input?.files?.[0];
+  if (!file) return;
+
+  if (!file.name.endsWith(".hex")) {
+    addLog("[Cloud Error] Only .hex files are allowed.");
+    return;
+  }
+
+  cloudUploading.value = true;
+  addLog(`Uploading ${file.name} to cloud storage...`);
+  try {
+    const { error } = await supabase.storage
+      .from(FIRMWARE_BUCKET)
+      .upload(file.name, file, { upsert: true });
+
+    if (error) {
+      addLog(`[Cloud Error] Upload failed: ${error.message}`);
+    } else {
+      addLog(`Successfully uploaded: ${file.name}`);
+      await fetchCloudFirmware();
+    }
+  } catch (e: any) {
+    addLog(`[Cloud Error] ${e.message}`);
+  } finally {
+    cloudUploading.value = false;
+    // Reset input so same file can be re-uploaded
+    if (input) input.value = "";
+  }
+};
+
+const deleteCloudFirmware = async () => {
+  if (!selectedCloudFile.value) return;
+  if (!confirm(`Delete "${selectedCloudFile.value}" from cloud storage? This cannot be undone.`)) return;
+
+  try {
+    const { error } = await supabase.storage
+      .from(FIRMWARE_BUCKET)
+      .remove([selectedCloudFile.value]);
+
+    if (error) {
+      addLog(`[Cloud Error] Delete failed: ${error.message}`);
+    } else {
+      addLog(`Deleted cloud firmware: ${selectedCloudFile.value}`);
+      selectedCloudFile.value = "";
+      firmwarePath.value = "";
+      await fetchCloudFirmware();
+    }
+  } catch (e: any) {
+    addLog(`[Cloud Error] ${e.message}`);
+  }
+};
 
 // Serial Monitor State
 const serialBaud = ref("115200");
@@ -1431,6 +1607,10 @@ const sendSerial = async () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.column .panel:last-child {
+  flex: 1;
 }
 
 /* --- Global Port Bar --- */
@@ -2517,5 +2697,70 @@ const sendSerial = async () => {
 .btn-delete:hover {
   background-color: rgba(244, 67, 54, 0.1);
   box-shadow: 0 0 8px rgba(244, 67, 54, 0.2);
+}
+
+/* --- Cloud Firmware Styles --- */
+.firmware-source-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.source-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.source-btn:hover {
+  color: var(--text-secondary);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.source-btn.active {
+  color: var(--primary-color);
+  background-color: rgba(0, 188, 212, 0.08);
+  box-shadow: inset 0 -2px 0 var(--primary-color);
+}
+
+.cloud-firmware-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cloud-status-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.cloud-admin-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 0.7rem;
 }
 </style>

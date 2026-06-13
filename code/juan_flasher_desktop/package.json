@@ -1,6 +1,6 @@
 {
   "name": "juan-flasher-desktop",
-  "version": "3.1.1",
+  "version": "3.2.1",
   "description": "Professional AVR flashing and ISP utility",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -29,6 +29,7 @@
     "vue-tsc": "^1.8.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
     "serialport": "^13.0.0"
   },
   "build": {
@@ -53,7 +54,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/juanjuanrobotix_logo.png"
     },
     "nsis": {
       "oneClick": false,

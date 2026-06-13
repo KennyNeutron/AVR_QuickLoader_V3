@@ -21,7 +21,7 @@ function createWindow() {
     width: 800,
     height: 800,
     title: `Juan Flasher v${APP_VERSION} | By KennyNeutron`,
-    icon: path.join(__dirname, "../assets/icon.png"),
+    icon: path.join(__dirname, "../assets/juanrobotix_icon.ico"),
     backgroundColor: "#1a1a1a",
     webPreferences: {
       sandbox: false,

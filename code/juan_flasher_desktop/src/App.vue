@@ -1,5 +1,131 @@
 <template>
-  <div class="app-container">
+  <div class="app-wrapper">
+    <div class="login-glow"></div>
+    <!-- Login View -->
+    <div v-if="currentView === 'login'" class="login-view">
+      <div class="login-card">
+        <div class="login-logo">
+          <img
+            :src="juanrobotixLogo"
+            alt="JuanRobotix Logo"
+            class="glow-logo login-logo-img"
+          />
+          <h1>JUAN FLASHER</h1>
+          <p class="subtitle">AVR Microcontroller Flashing Utility</p>
+        </div>
+
+        <form @submit.prevent="handleLogin" class="login-form">
+          <div class="input-group-login">
+            <label>EMAIL ADDRESS</label>
+            <div class="input-wrapper-login">
+              <span class="input-icon-login">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </span>
+              <input
+                type="email"
+                placeholder="email@example.com"
+                v-model="loginEmail"
+                :disabled="loginLoading"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="input-group-login">
+            <label>PASSWORD</label>
+            <div class="input-wrapper-login">
+              <span class="input-icon-login">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </span>
+              <input
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="••••••••"
+                v-model="loginPassword"
+                :disabled="loginLoading"
+                required
+                style="padding-right: 42px;"
+              />
+              <button
+                type="button"
+                class="password-toggle-btn"
+                @click="showPassword = !showPassword"
+                :disabled="loginLoading"
+              >
+                <svg
+                  v-if="showPassword"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="loginError" class="login-error-msg">
+            <span class="error-dot"></span>
+            {{ loginError }}
+          </div>
+
+          <button type="submit" class="btn-login-submit" :disabled="loginLoading">
+            <span v-if="loginLoading" class="spinner-inline"></span>
+            <span v-else>SIGN IN</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Flasher App -->
+    <div v-else class="app-container">
     <!-- Top Bar: Global Device Port -->
     <header class="global-port-section panel">
       <div class="port-header">
@@ -7,29 +133,54 @@
           <div class="section-title">GLOBAL DEVICE PORT</div>
           <div class="section-subtitle">Unified port for all operations</div>
         </div>
-        <div
-          class="refresh-icon"
-          @click="refreshPorts"
-          title="Refresh Ports"
-          style="cursor: pointer; color: #00e676"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span v-if="userEmail" class="user-badge">{{ userEmail }}</span>
+          <div
+            class="refresh-icon"
+            @click="refreshPorts"
+            title="Refresh Ports"
+            style="cursor: pointer; color: #00e676"
           >
-            <path d="M23 4v6h-6"></path>
-            <path d="M1 20v-6h6"></path>
-            <path
-              d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-            ></path>
-          </svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path
+                d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+              ></path>
+            </svg>
+          </div>
+          <div
+            class="signout-icon"
+            @click="handleSignOut"
+            title="Sign Out"
+            style="cursor: pointer; color: #ff5252; display: flex; align-items: center;"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -509,13 +660,64 @@
         </div>
       </div>
     </footer>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from "vue";
+import juanrobotixLogo from "../assets/juanrobotix_logo.png";
+import { supabase } from "./supabase";
 
 // --- State ---
+const currentView = ref<"login" | "dashboard">("login");
+const userEmail = ref("");
+const loginEmail = ref("");
+const loginPassword = ref("");
+const loginError = ref("");
+const loginLoading = ref(false);
+const showPassword = ref(false);
+
+const handleLogin = async () => {
+  loginError.value = "";
+  if (!loginEmail.value || !loginPassword.value) {
+    loginError.value = "Please fill in all fields.";
+    return;
+  }
+  
+  loginLoading.value = true;
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginEmail.value,
+      password: loginPassword.value,
+    });
+
+    if (error) {
+      loginError.value = error.message;
+    } else if (data.user) {
+      userEmail.value = data.user.email || "";
+      currentView.value = "dashboard";
+      addLog(`Authenticated successfully as ${userEmail.value}`);
+    }
+  } catch (e: any) {
+    loginError.value = e.message || "An unexpected error occurred.";
+  } finally {
+    loginLoading.value = false;
+  }
+};
+
+
+const handleSignOut = async () => {
+  try {
+    await supabase.auth.signOut();
+  } catch (e) {
+    console.error("Error signing out from Supabase:", e);
+  }
+  userEmail.value = "";
+  currentView.value = "login";
+  addLog("Logged out");
+};
+
 const activeTab = ref("terminal");
 const isTerminalExpanded = ref(false);
 const ports = ref<{ path: string; manufacturer?: string }[]>([]);
@@ -541,6 +743,18 @@ const isPortConnected = ref(true);
 
 // --- lifecycle ---
 onMounted(async () => {
+  // Check active user session on load
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session && data.session.user) {
+      userEmail.value = data.session.user.email || "";
+      currentView.value = "dashboard";
+      addLog(`Restored session for ${userEmail.value}`);
+    }
+  } catch (e) {
+    console.error("Failed to restore Supabase session:", e);
+  }
+
   // Initial logs
   addLog("Juan Flasher v3.2.1 initialized");
   addLog("System ready");
@@ -890,12 +1104,22 @@ const sendSerial = async () => {
 }
 
 /* --- Layout --- */
+.app-wrapper {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-color: #0c0c0e;
+  overflow: hidden;
+}
+
 .app-container {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background-color: #1a1a1a;
+  background-color: transparent;
   color: #fff;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
@@ -918,10 +1142,12 @@ const sendSerial = async () => {
 
 /* --- Global Port Bar --- */
 .global-port-section {
-  background-color: #252d3a;
+  background: rgba(30, 30, 35, 0.4);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   padding: 20px 16px;
   border-bottom: 4px solid var(--warning-color);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05);
   z-index: 10;
 }
 
@@ -956,8 +1182,9 @@ const sendSerial = async () => {
   position: relative;
   display: flex;
   align-items: center;
-  background-color: #1e242e;
-  border-radius: 4px;
+  background-color: rgba(10, 10, 12, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
 }
 
 /* Removed .port-selector-wrapper .usb-icon and .port-select as we reused the standard classes */
@@ -968,14 +1195,10 @@ const sendSerial = async () => {
   gap: 8px;
   padding: 8px 16px;
   padding-left: 12px;
-  border-left: 1px solid #3d4a5c;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
   min-width: 120px;
-  background: linear-gradient(
-    135deg,
-    rgba(0, 188, 212, 0.05),
-    rgba(0, 188, 212, 0.02)
-  );
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: 6px;
 }
 
 .status-dot {
@@ -1033,22 +1256,23 @@ const sendSerial = async () => {
 
 /* --- Common Panel Styles --- */
 .panel {
-  background-color: #242424;
-  border-radius: 6px;
-  border: 1px solid #333;
+  background: rgba(30, 30, 35, 0.45);
+  backdrop-filter: blur(20px);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
 .panel-header {
   padding: 8px 12px;
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(255, 255, 255, 0.02);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--primary-color);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .panel-content {
@@ -1066,14 +1290,22 @@ const sendSerial = async () => {
 
 .text-input,
 .custom-select {
-  background-color: #111;
+  background-color: rgba(10, 10, 12, 0.8);
   color: white;
-  border: 1px solid #333;
-  border-radius: 4px;
-  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
   font-size: 0.9rem;
   outline: none;
   width: 100%;
+  transition: all 0.3s ease;
+}
+
+.text-input:focus,
+.custom-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 10px rgba(0, 188, 212, 0.2);
+  background-color: rgba(10, 10, 12, 0.95);
 }
 
 .custom-select {
@@ -1130,16 +1362,24 @@ const sendSerial = async () => {
 .text-input-with-icon {
   width: 100%;
   padding: 8px 8px 8px 36px;
-  background-color: #111;
-  border: 1px solid #333;
-  border-radius: 4px;
+  background-color: rgba(10, 10, 12, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
   color: white;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.text-input-with-icon:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 10px rgba(0, 188, 212, 0.2);
+  background-color: rgba(10, 10, 12, 0.95);
 }
 
 /* --- Buttons --- */
 .btn {
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 8px 16px;
   cursor: pointer;
   font-weight: 600;
@@ -1152,45 +1392,70 @@ const sendSerial = async () => {
 }
 
 .btn-primary {
-  background-color: #00bcd4;
-  color: #000;
+  background: linear-gradient(135deg, #00bcd4 0%, #00acc1 100%);
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.25);
 }
-.btn-primary:hover {
-  background-color: #00acc1;
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00acc1 0%, #0097a7 100%);
+  box-shadow: 0 6px 16px rgba(0, 188, 212, 0.35);
+  transform: translateY(-1px);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(0, 188, 212, 0.15);
 }
 
 .btn-secondary {
   background-color: transparent;
-  border: 1px solid #00bcd4;
+  border: 1px solid rgba(0, 188, 212, 0.3);
   color: #00bcd4;
 }
-.btn-secondary:hover {
-  background-color: rgba(0, 188, 212, 0.1);
+.btn-secondary:hover:not(:disabled) {
+  background-color: rgba(0, 188, 212, 0.08);
+  border-color: #00bcd4;
 }
 
 .btn-danger {
-  background-color: #f44336;
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
   color: white;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.25);
 }
-.btn-danger:hover {
-  background-color: #d32f2f;
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  box-shadow: 0 6px 16px rgba(244, 67, 54, 0.35);
+  transform: translateY(-1px);
+}
+.btn-danger:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn-warning {
-  background-color: #ff9800;
-  color: black;
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.25);
 }
-.btn-warning:hover {
-  background-color: #f57c00;
+.btn-warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
+  box-shadow: 0 6px 16px rgba(255, 152, 0, 0.35);
+  transform: translateY(-1px);
 }
 
 .btn-outline {
   background-color: transparent;
-  border: 1px solid #444;
-  color: var(--primary-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #aaaaaa;
 }
-.btn-outline:hover {
+.btn-outline:hover:not(:disabled) {
   border-color: var(--primary-color);
+  color: var(--primary-color);
+  background-color: rgba(0, 188, 212, 0.02);
 }
 
 .btn-large {
@@ -1240,8 +1505,9 @@ const sendSerial = async () => {
 
 /* --- Bottom Panel (Tabbed) --- */
 .bottom-panel {
-  background-color: #111;
-  border-top: 1px solid #333;
+  background: rgba(18, 18, 22, 0.8);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   flex: 1; /* 1 1 0% - strictly fill space, do not grow with content */
@@ -1258,8 +1524,8 @@ const sendSerial = async () => {
 .panel-tabs {
   display: flex;
   align-items: center;
-  background-color: #1e1e1e;
-  border-bottom: 1px solid #333;
+  background-color: rgba(30, 30, 35, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding: 0 8px;
 }
 
@@ -1333,7 +1599,7 @@ const sendSerial = async () => {
 
 /* Serial Tab Styles */
 .serial-body {
-  background-color: #000;
+  background-color: rgba(10, 10, 12, 0.4);
 }
 
 .serial-output {
@@ -1350,9 +1616,9 @@ const sendSerial = async () => {
 .serial-input-bar {
   display: flex;
   align-items: center;
-  padding: 4px 8px;
-  background-color: #1e1e1e;
-  border-top: 1px solid #333;
+  padding: 8px 12px;
+  background-color: rgba(20, 20, 25, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .prompt-char {
@@ -1473,5 +1739,288 @@ const sendSerial = async () => {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* --- Login Page Styles --- */
+.login-view {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background-color: transparent;
+  overflow: hidden;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #ffffff;
+}
+
+.login-glow {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(0, 188, 212, 0.15) 0%, rgba(124, 77, 255, 0.05) 50%, transparent 100%);
+  filter: blur(80px);
+  z-index: 1;
+  pointer-events: none;
+  animation: pulse-glow 8s infinite alternate;
+}
+
+@keyframes pulse-glow {
+  0% { transform: scale(1) translate(0, 0); opacity: 0.8; }
+  100% { transform: scale(1.2) translate(20px, -20px); opacity: 1; }
+}
+
+.login-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  background: rgba(30, 30, 35, 0.45);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.login-logo {
+  margin-bottom: 30px;
+}
+
+.glow-logo {
+  filter: drop-shadow(0 0 8px rgba(0, 188, 212, 0.5));
+  margin-bottom: 12px;
+}
+
+.login-logo-img {
+  height: 64px;
+  max-width: 100%;
+  object-fit: contain;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 0 12px rgba(0, 188, 212, 0.4));
+}
+
+.login-logo h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #00ffff 0%, #7c4dff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 6px 0;
+}
+
+.login-logo .subtitle {
+  color: #888899;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.login-form {
+  text-align: left;
+}
+
+.input-group-login {
+  margin-bottom: 20px;
+}
+
+.input-group-login label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #888899;
+  margin-bottom: 8px;
+  letter-spacing: 1.5px;
+}
+
+.input-wrapper-login {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-login {
+  position: absolute;
+  left: 14px;
+  color: #555566;
+  display: flex;
+  align-items: center;
+  transition: color 0.3s ease;
+}
+
+.input-wrapper-login input {
+  width: 100%;
+  padding: 12px 14px 12px 42px;
+  background-color: rgba(10, 10, 12, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.input-wrapper-login input:focus {
+  outline: none;
+  border-color: #00bcd4;
+  box-shadow: 0 0 12px rgba(0, 188, 212, 0.25);
+  background-color: rgba(10, 10, 12, 0.95);
+}
+
+.input-wrapper-login input:focus + .input-icon-login {
+  color: #00bcd4;
+}
+
+.login-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  color: #ff5252;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.error-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #ff5252;
+  box-shadow: 0 0 6px #ff5252;
+}
+
+.btn-login-submit {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #00bcd4 0%, #00acc1 100%);
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 188, 212, 0.3);
+}
+
+.btn-login-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #00acc1 0%, #0097a7 100%);
+  box-shadow: 0 6px 20px rgba(0, 188, 212, 0.45);
+}
+
+.btn-login-submit:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 10px rgba(0, 188, 212, 0.2);
+}
+
+.btn-login-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.divider-login {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #444455;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.divider-login::before,
+.divider-login::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.divider-login span {
+  padding: 0 10px;
+}
+
+.btn-login-bypass {
+  width: 100%;
+  padding: 12px;
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #aaaaaa;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-login-bypass:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.btn-login-bypass:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-footer {
+  margin-top: 24px;
+  font-size: 0.75rem;
+  color: #555566;
+}
+
+.spinner-inline {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.user-badge {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: #aaaaaa;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #555566;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.3s ease;
+}
+
+.password-toggle-btn:hover {
+  color: var(--primary-color);
 }
 </style>

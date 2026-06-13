@@ -745,6 +745,7 @@
                     <th>EMAIL</th>
                     <th>EXPIRES AT</th>
                     <th>STATUS</th>
+                    <th>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -756,9 +757,28 @@
                         {{ new Date(user.expires_at).getTime() > Date.now() ? 'ACTIVE' : 'EXPIRED' }}
                       </span>
                     </td>
+                    <td class="actions-cell">
+                      <button
+                        v-if="new Date(user.expires_at).getTime() > Date.now()"
+                        class="btn-table-action btn-disable"
+                        @click="disableTempUser(user.id, user.email)"
+                        title="Disable (expire now)"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                        Disable
+                      </button>
+                      <button
+                        class="btn-table-action btn-delete"
+                        @click="deleteTempUser(user.id, user.email)"
+                        title="Delete permanently"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                   <tr v-if="tempUsers.length === 0">
-                    <td colspan="3" class="text-center text-muted">No temporary sessions generated yet.</td>
+                    <td colspan="4" class="text-center text-muted">No temporary sessions generated yet.</td>
                   </tr>
                 </tbody>
               </table>
@@ -933,6 +953,36 @@ const generateTempUser = async () => {
     generateError.value = e.message || "An unexpected error occurred.";
   } finally {
     generateLoading.value = false;
+  }
+};
+
+const disableTempUser = async (userId: string, email: string) => {
+  if (!confirm(`Disable temporary user "${email}"? Their session will expire immediately.`)) return;
+  try {
+    const { error } = await supabase.rpc('disable_temp_user', { p_user_id: userId });
+    if (error) {
+      addLog(`[Admin Error] Failed to disable ${email}: ${error.message}`);
+    } else {
+      addLog(`Admin disabled temporary user: ${email}`);
+      await fetchTempUsers();
+    }
+  } catch (e: any) {
+    addLog(`[Admin Error] ${e.message}`);
+  }
+};
+
+const deleteTempUser = async (userId: string, email: string) => {
+  if (!confirm(`Permanently delete temporary user "${email}"? This cannot be undone.`)) return;
+  try {
+    const { error } = await supabase.rpc('delete_temp_user', { p_user_id: userId });
+    if (error) {
+      addLog(`[Admin Error] Failed to delete ${email}: ${error.message}`);
+    } else {
+      addLog(`Admin deleted temporary user: ${email}`);
+      await fetchTempUsers();
+    }
+  } catch (e: any) {
+    addLog(`[Admin Error] ${e.message}`);
   }
 };
 
@@ -2425,5 +2475,47 @@ const sendSerial = async () => {
   background-color: rgba(244, 67, 54, 0.1);
   color: #ff5252;
   border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.btn-table-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-disable {
+  color: #ffab00;
+  border-color: rgba(255, 171, 0, 0.3);
+}
+
+.btn-disable:hover {
+  background-color: rgba(255, 171, 0, 0.1);
+  box-shadow: 0 0 8px rgba(255, 171, 0, 0.2);
+}
+
+.btn-delete {
+  color: #ff5252;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+.btn-delete:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.2);
 }
 </style>

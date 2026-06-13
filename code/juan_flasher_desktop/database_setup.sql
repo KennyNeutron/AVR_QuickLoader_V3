@@ -190,3 +190,59 @@ begin
   );
 end;
 $$;
+
+-- 7. RPC: Disable Temporary User (expire immediately)
+create or replace function public.disable_temp_user(p_user_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Forbidden: Admin privileges required.';
+  end if;
+
+  -- Set expires_at to now, effectively disabling the session
+  update public.profiles
+    set expires_at = now()
+    where id = p_user_id and role = 'temp';
+
+  if not found then
+    raise exception 'Temporary user not found.';
+  end if;
+
+  return jsonb_build_object(
+    'message', 'Temporary user disabled successfully.',
+    'userId', p_user_id
+  );
+end;
+$$;
+
+-- 8. RPC: Delete Temporary User (remove entirely)
+create or replace function public.delete_temp_user(p_user_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Forbidden: Admin privileges required.';
+  end if;
+
+  -- Verify target is a temp user
+  if not exists (select 1 from public.profiles where id = p_user_id and role = 'temp') then
+    raise exception 'Temporary user not found.';
+  end if;
+
+  -- Delete from auth.users (cascades to profiles and identities)
+  delete from auth.users where id = p_user_id;
+
+  return jsonb_build_object(
+    'message', 'Temporary user deleted successfully.',
+    'userId', p_user_id
+  );
+end;
+$$;
+

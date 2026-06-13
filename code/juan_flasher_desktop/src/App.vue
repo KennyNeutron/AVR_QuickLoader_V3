@@ -134,7 +134,9 @@
           <div class="section-subtitle">Unified port for all operations</div>
         </div>
         <div style="display: flex; align-items: center; gap: 16px;">
-          <span v-if="userEmail" class="user-badge">{{ userEmail }}</span>
+          <span v-if="userEmail" class="user-badge">
+            {{ userEmail }} {{ userRole ? `(${userRole.toUpperCase()})` : '' }}
+          </span>
           <div
             class="refresh-icon"
             @click="refreshPorts"
@@ -519,6 +521,14 @@
         >
           SERIAL MONITOR
         </button>
+        <button
+          v-if="userRole === 'admin'"
+          class="tab-btn"
+          :class="{ active: activeTab === 'admin' }"
+          @click="activeTab = 'admin'; fetchTempUsers();"
+        >
+          ADMIN CONTROL
+        </button>
 
         <div class="tab-spacer"></div>
 
@@ -659,6 +669,103 @@
           </button>
         </div>
       </div>
+
+      <!-- Admin Tab Content -->
+      <div class="panel-body admin-body" v-if="activeTab === 'admin' && userRole === 'admin'">
+        <div class="admin-panel-grid">
+          <!-- Generator Form -->
+          <div class="admin-panel-section card-form">
+            <h3 class="admin-sub-header">GENERATE TEMPORARY USER</h3>
+            <form @submit.prevent="generateTempUser" class="admin-form">
+              <div class="form-row">
+                <div class="form-col">
+                  <label class="input-label">EMAIL ADDRESS</label>
+                  <input
+                    type="email"
+                    placeholder="operator@company.com"
+                    v-model="tempEmailInput"
+                    :disabled="generateLoading"
+                    class="text-input"
+                    required
+                  />
+                </div>
+                <div class="form-col">
+                  <label class="input-label">PASSWORD</label>
+                  <input
+                    type="text"
+                    placeholder="Enter temp password"
+                    v-model="tempPasswordInput"
+                    :disabled="generateLoading"
+                    class="text-input"
+                    required
+                  />
+                </div>
+              </div>
+              <div class="form-row mt-2">
+                <div class="form-col">
+                  <label class="input-label">DURATION: {{ tempDurationHours }} {{ tempDurationHours === 1 ? 'HOUR' : 'HOURS' }}</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="24"
+                    step="1"
+                    v-model="tempDurationHours"
+                    :disabled="generateLoading"
+                    class="range-slider"
+                  />
+                </div>
+              </div>
+              <div v-if="generateError" class="login-error-msg mt-2">
+                <span class="error-dot"></span>
+                {{ generateError }}
+              </div>
+              <div v-if="generateSuccess" class="admin-success-msg mt-2">
+                <span class="success-dot"></span>
+                {{ generateSuccess }}
+              </div>
+              <button type="submit" class="btn btn-primary mt-2" :disabled="generateLoading" style="width: 100%;">
+                <span v-if="generateLoading" class="spinner-inline"></span>
+                <span v-else>GENERATE ACCESS</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Active Temp Users List -->
+          <div class="admin-panel-section card-list">
+            <div class="list-header-row">
+              <h3 class="admin-sub-header">ACTIVE TEMPORARY SESSIONS</h3>
+              <button class="btn-icon-tiny" @click="fetchTempUsers" title="Refresh List" style="color: var(--primary-color);">
+                Refresh
+              </button>
+            </div>
+            <div class="temp-users-table-wrapper">
+              <table class="temp-users-table">
+                <thead>
+                  <tr>
+                    <th>EMAIL</th>
+                    <th>EXPIRES AT</th>
+                    <th>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="user in tempUsers" :key="user.id">
+                    <td>{{ user.email }}</td>
+                    <td>{{ new Date(user.expires_at).toLocaleString() }}</td>
+                    <td>
+                      <span class="status-tag" :class="new Date(user.expires_at).getTime() > Date.now() ? 'tag-active' : 'tag-expired'">
+                        {{ new Date(user.expires_at).getTime() > Date.now() ? 'ACTIVE' : 'EXPIRED' }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr v-if="tempUsers.length === 0">
+                    <td colspan="3" class="text-center text-muted">No temporary sessions generated yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </footer>
     </div>
   </div>
@@ -672,11 +779,40 @@ import { supabase } from "./supabase";
 // --- State ---
 const currentView = ref<"login" | "dashboard">("login");
 const userEmail = ref("");
+const userRole = ref<"admin" | "temp" | "">("");
+const userExpiresAt = ref<string | null>(null);
+
 const loginEmail = ref("");
 const loginPassword = ref("");
 const loginError = ref("");
 const loginLoading = ref(false);
 const showPassword = ref(false);
+
+// Admin Panel State
+const tempEmailInput = ref("");
+const tempPasswordInput = ref("");
+const tempDurationHours = ref(2);
+const generateError = ref("");
+const generateSuccess = ref("");
+const generateLoading = ref(false);
+const tempUsers = ref<any[]>([]);
+
+// Active session monitoring timer
+let expirationCheckInterval: any = null;
+
+const startExpirationCheck = () => {
+  if (expirationCheckInterval) clearInterval(expirationCheckInterval);
+  expirationCheckInterval = setInterval(async () => {
+    if (userRole.value === 'temp' && userExpiresAt.value) {
+      const expiresTime = new Date(userExpiresAt.value).getTime();
+      if (Date.now() >= expiresTime) {
+        addLog("Your temporary session has expired. Logging out...");
+        await handleSignOut();
+        alert("Session Expired: Your temporary account access has ended.");
+      }
+    }
+  }, 5000);
+};
 
 const handleLogin = async () => {
   loginError.value = "";
@@ -695,9 +831,36 @@ const handleLogin = async () => {
     if (error) {
       loginError.value = error.message;
     } else if (data.user) {
+      // Fetch profile details
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, expires_at')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profileError) {
+        addLog(`[Login Profile Error] ${profileError.message} (Code: ${profileError.code})`);
+      }
+
+      const expiresTime = profile?.expires_at ? new Date(profile.expires_at).getTime() : null;
+      if (expiresTime && expiresTime < Date.now()) {
+        loginError.value = "This temporary account has expired.";
+        await supabase.auth.signOut();
+        loginLoading.value = false;
+        return;
+      }
+
       userEmail.value = data.user.email || "";
+      userRole.value = (profile?.role || "temp") as "admin" | "temp";
+      userExpiresAt.value = profile?.expires_at || null;
+
       currentView.value = "dashboard";
-      addLog(`Authenticated successfully as ${userEmail.value}`);
+      addLog(`Authenticated successfully as ${userEmail.value} (${userRole.value.toUpperCase()})`);
+      if (userRole.value === 'temp' && userExpiresAt.value) {
+        addLog(`Session expires on: ${new Date(userExpiresAt.value).toLocaleString()}`);
+      }
+      
+      startExpirationCheck();
     }
   } catch (e: any) {
     loginError.value = e.message || "An unexpected error occurred.";
@@ -706,16 +869,71 @@ const handleLogin = async () => {
   }
 };
 
-
 const handleSignOut = async () => {
+  if (expirationCheckInterval) {
+    clearInterval(expirationCheckInterval);
+    expirationCheckInterval = null;
+  }
   try {
     await supabase.auth.signOut();
   } catch (e) {
     console.error("Error signing out from Supabase:", e);
   }
   userEmail.value = "";
+  userRole.value = "";
+  userExpiresAt.value = null;
   currentView.value = "login";
   addLog("Logged out");
+};
+
+const fetchTempUsers = async () => {
+  if (userRole.value !== 'admin') return;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'temp')
+      .order('expires_at', { ascending: false });
+    if (!error && data) {
+      tempUsers.value = data;
+    }
+  } catch (e) {
+    console.error("Error fetching temporary users:", e);
+  }
+};
+
+const generateTempUser = async () => {
+  generateError.value = "";
+  generateSuccess.value = "";
+  if (!tempEmailInput.value || !tempPasswordInput.value) {
+    generateError.value = "Please fill in all fields.";
+    return;
+  }
+
+  generateLoading.value = true;
+  try {
+    const { data, error } = await supabase.rpc('create_temp_user', {
+      p_email: tempEmailInput.value,
+      p_password: tempPasswordInput.value,
+      p_duration_hours: Number(tempDurationHours.value),
+    });
+
+    if (error) {
+      generateError.value = error.message || "Failed to create temporary user.";
+    } else if (data && data.error) {
+      generateError.value = data.error;
+    } else {
+      generateSuccess.value = `Successfully created temporary user: ${tempEmailInput.value}!`;
+      addLog(`Admin generated temporary session for: ${tempEmailInput.value}`);
+      tempEmailInput.value = "";
+      tempPasswordInput.value = "";
+      await fetchTempUsers();
+    }
+  } catch (e: any) {
+    generateError.value = e.message || "An unexpected error occurred.";
+  } finally {
+    generateLoading.value = false;
+  }
 };
 
 const activeTab = ref("terminal");
@@ -747,9 +965,34 @@ onMounted(async () => {
   try {
     const { data } = await supabase.auth.getSession();
     if (data.session && data.session.user) {
-      userEmail.value = data.session.user.email || "";
-      currentView.value = "dashboard";
-      addLog(`Restored session for ${userEmail.value}`);
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, expires_at')
+        .eq('id', data.session.user.id)
+        .single();
+      
+      if (profileError) {
+        addLog(`[Session Profile Error] ${profileError.message} (Code: ${profileError.code})`);
+      }
+      
+      const expiresTime = profile?.expires_at ? new Date(profile.expires_at).getTime() : null;
+      if (expiresTime && expiresTime < Date.now()) {
+        // Expired
+        await supabase.auth.signOut();
+        addLog("Previous temporary session has expired.");
+      } else {
+        userEmail.value = data.session.user.email || "";
+        userRole.value = (profile?.role || "temp") as "admin" | "temp";
+        userExpiresAt.value = profile?.expires_at || null;
+
+        currentView.value = "dashboard";
+        addLog(`Restored session for ${userEmail.value} (${userRole.value.toUpperCase()})`);
+        if (userRole.value === 'temp' && userExpiresAt.value) {
+          addLog(`Session expires on: ${new Date(userExpiresAt.value).toLocaleString()}`);
+        }
+        
+        startExpirationCheck();
+      }
     }
   } catch (e) {
     console.error("Failed to restore Supabase session:", e);
@@ -2022,5 +2265,165 @@ const sendSerial = async () => {
 
 .password-toggle-btn:hover {
   color: var(--primary-color);
+}
+
+/* --- Admin Panel Styles --- */
+.admin-body {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.admin-panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 16px;
+  height: 100%;
+}
+
+.admin-panel-section {
+  background: rgba(30, 30, 35, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-sub-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--primary-color);
+  margin-top: 0;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.range-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  margin: 10px 0;
+}
+
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0, 188, 212, 0.6);
+  transition: transform 0.1s;
+}
+
+.range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.admin-success-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  color: var(--success-color);
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.success-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--success-color);
+  box-shadow: 0 0 6px var(--success-color);
+}
+
+.list-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.temp-users-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+}
+
+.temp-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.temp-users-table th,
+.temp-users-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.temp-users-table th {
+  background-color: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.temp-users-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.status-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tag-active {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: var(--success-color);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.tag-expired {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #ff5252;
+  border: 1px solid rgba(244, 67, 54, 0.2);
 }
 </style>

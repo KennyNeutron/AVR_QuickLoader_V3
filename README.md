@@ -42,6 +42,12 @@ The PCB folder contains the custom AVR programmer hardware designs.
 
 A desktop application designed to control the AVR programmer and provide a rich dashboard for port diagnostics, HEX firmware uploads, and live serial monitoring.
 
+### Key Features
+*   **User Authentication**: Secure login system powered by Supabase with role-based access control (Admin/Temp roles).
+*   **Cloud Firmware Management**: Browse, download, and flash firmware directly from cloud storage, or use local HEX files.
+*   **Admin Dashboard**: Manage temporary user sessions and upload/delete firmware from the cloud.
+*   **Modern UI/UX**: Sleek dark theme with frosted glass effects and JuanRobotix branding.
+
 ### Prerequisites
 
 *   **Node.js** (v18 or v20 LTS recommended)
@@ -74,5 +80,4 @@ For detailed software configuration, npm scripts, and development guidelines, re
 This project is licensed under the MIT License.
 
 ## Updates
-Last Updated: June 6, 2026
-LU: June 7, 2026 - edits from Ubuntu side
+Last Updated: June 14, 2026

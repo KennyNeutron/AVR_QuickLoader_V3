@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Menu, nativeImage } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
@@ -19,11 +19,14 @@ const APP_VERSION = packageJson.version;
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
+  const iconPath = path.join(__dirname, "../assets/juanrobotix_logo.png");
+  const appIcon = nativeImage.createFromPath(iconPath);
+
   mainWindow = new BrowserWindow({
     width: 800,
     height: 800,
     title: `Juan Flasher v${APP_VERSION} | By KennyNeutron`,
-    icon: path.join(__dirname, "../assets/juanrobotix_icon.ico"),
+    icon: appIcon,
     backgroundColor: "#1a1a1a",
     webPreferences: {
       sandbox: false,
@@ -289,6 +292,10 @@ function createWindow() {
     stopAvrdude();
     disconnectSerial();
   });
+}
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId("com.kennyneutron.juan-flasher");
 }
 
 app.whenReady().then(() => {

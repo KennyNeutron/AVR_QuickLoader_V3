@@ -20,7 +20,7 @@ const APP_VERSION = packageJson.version;
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
-  const iconPath = path.join(__dirname, "../assets/juanrobotix_logo.png");
+  const iconPath = path.join(__dirname, "../assets/juanrobotix_icon.ico");
   const appIcon = nativeImage.createFromPath(iconPath);
 
   mainWindow = new BrowserWindow({

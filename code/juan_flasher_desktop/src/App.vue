@@ -1273,7 +1273,7 @@ onMounted(async () => {
   }
 
   // Initial logs
-  addLog("Juan Flasher v3.2.1 initialized");
+  addLog("Juan Flasher v3.2.2 initialized");
   addLog("System ready");
   addLog("Waiting for command...");
 

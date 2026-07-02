@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, Menu, nativeImage } from "electron
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
+import * as crypto from "crypto";
 import { listPorts, spawnAvrdude, stopAvrdude } from "./avrdude-handler.js";
 import {
   connectSerial,
@@ -269,8 +270,10 @@ function createWindow() {
   });
 
   // 9. Save Cloud Firmware to temp file (returns local path for avrdude)
+  //    Uses a randomized temp directory to prevent path prediction by other processes.
   ipcMain.handle("save-cloud-firmware", async (_event, { fileName, base64Data }: { fileName: string; base64Data: string }) => {
-    const tempDir = path.join(os.tmpdir(), "juan-flasher-firmware");
+    const randomId = crypto.randomBytes(16).toString("hex");
+    const tempDir = path.join(os.tmpdir(), `jf-${randomId}`);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
@@ -280,11 +283,20 @@ function createWindow() {
   });
 
   // 10. Clear cached cloud firmware files
+  //    Cleans up all randomized jf-* temp directories to prevent firmware exposure.
   ipcMain.handle("clear-firmware-cache", async () => {
-    const tempDir = path.join(os.tmpdir(), "juan-flasher-firmware");
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
+    const tmpDir = os.tmpdir();
+    try {
+      const entries = fs.readdirSync(tmpDir);
+      for (const entry of entries) {
+        if (entry.startsWith("jf-")) {
+          const dirPath = path.join(tmpDir, entry);
+          try {
+            fs.rmSync(dirPath, { recursive: true, force: true });
+          } catch {}
+        }
+      }
+    } catch {}
     return true;
   });
 

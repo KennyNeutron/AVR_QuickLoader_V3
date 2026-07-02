@@ -808,6 +808,15 @@
                         Disable
                       </button>
                       <button
+                        v-if="new Date(user.expires_at).getTime() <= Date.now()"
+                        class="btn-table-action btn-renew"
+                        @click="renewTempUser(user.id, user.email)"
+                        title="Renew access"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        Renew
+                      </button>
+                      <button
                         class="btn-table-action btn-delete"
                         @click="deleteTempUser(user.id, user.email)"
                         title="Delete permanently"
@@ -1012,6 +1021,22 @@ const disableTempUser = async (userId: string, email: string) => {
       addLog(`[Admin Error] Failed to disable ${email}: ${error.message}`);
     } else {
       addLog(`Admin disabled temporary user: ${email}`);
+      await fetchTempUsers();
+    }
+  } catch (e: any) {
+    addLog(`[Admin Error] ${e.message}`);
+  }
+};
+
+const renewTempUser = async (userId: string, email: string) => {
+  const duration = tempDurationHours.value;
+  if (!confirm(`Renew "${email}" for ${duration} hour(s) from now?`)) return;
+  try {
+    const { error } = await supabase.rpc('renew_temp_user', { p_user_id: userId, p_duration_hours: duration });
+    if (error) {
+      addLog(`[Admin Error] Failed to renew ${email}: ${error.message}`);
+    } else {
+      addLog(`Admin renewed temporary user: ${email} for ${duration} hour(s)`);
       await fetchTempUsers();
     }
   } catch (e: any) {
@@ -2702,6 +2727,16 @@ const sendSerial = async () => {
 .btn-disable:hover {
   background-color: rgba(255, 171, 0, 0.1);
   box-shadow: 0 0 8px rgba(255, 171, 0, 0.2);
+}
+
+.btn-renew {
+  color: #4caf50;
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.btn-renew:hover {
+  background-color: rgba(76, 175, 80, 0.1);
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.2);
 }
 
 .btn-delete {

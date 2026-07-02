@@ -249,7 +249,47 @@ begin
 end;
 $$;
 
--- 8. RPC: Delete Temporary User (remove entirely)
+-- 8. RPC: Renew Temporary User (extend expiration from now)
+create or replace function public.renew_temp_user(
+  p_user_id uuid,
+  p_duration_hours int
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  new_expires timestamptz;
+begin
+  if not public.is_admin() then
+    raise exception 'Forbidden: Admin privileges required.';
+  end if;
+
+  if p_duration_hours is null or p_duration_hours < 1 then
+    raise exception 'Duration must be at least 1 hour.';
+  end if;
+
+  -- Verify target is a temp user
+  if not exists (select 1 from public.profiles where id = p_user_id and role = 'temp') then
+    raise exception 'Temporary user not found.';
+  end if;
+
+  new_expires := now() + (p_duration_hours || ' hours')::interval;
+
+  update public.profiles
+    set expires_at = new_expires
+    where id = p_user_id and role = 'temp';
+
+  return jsonb_build_object(
+    'message', 'Temporary user renewed successfully.',
+    'userId', p_user_id,
+    'expiresAt', new_expires::text
+  );
+end;
+$$;
+
+-- 9. RPC: Delete Temporary User (remove entirely)
 create or replace function public.delete_temp_user(p_user_id uuid)
 returns jsonb
 language plpgsql
